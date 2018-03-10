@@ -171,7 +171,7 @@ class SearchUIAdapter(adapterCallback: SearchUIAdapter.Callback, integrationsCon
     def addGuestRoomCreationButton(): Unit =
       mergedResult = mergedResult ++ Seq(SearchResult(NewGuestRoom, TopUsersSection, 0))
 
-    if (userAccountsController.isTeamAccount) {
+    if (team.isDefined) {
       if (peopleOrServices.currentValue.contains(true)) {
         addIntegrations()
       } else {
