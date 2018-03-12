@@ -19,73 +19,176 @@ package com.waz.zclient.notifications.controllers
 
 import java.util.concurrent.TimeUnit
 
-import android.app.NotificationManager
-import android.content.Context
-import com.waz.RobolectricUtils
-import com.waz.model.ConversationData.ConversationType
-import com.waz.model._
-import com.waz.service.ZMessaging
-import com.waz.testutils.MockZMessaging
+import android.app.Notification
 import com.waz.api.NotificationsHandler.NotificationType
+import com.waz.api.NotificationsHandler.NotificationType.CONNECT_REQUEST
+import com.waz.content._
+import com.waz.service.images.ImageLoader
+import com.waz.utils.events.SourceSignal
+
+import scala.concurrent.Await
+import com.waz.model._
+import com.waz.service.conversation.{ConversationsListStateService, ConversationsService, ConversationsUiService}
 import com.waz.service.push.NotificationService.NotificationInfo
+import com.waz.service.push.{GlobalNotificationsService, NotificationService}
+import com.waz.service.{AccountsService, UiLifeCycle, UserService}
 import com.waz.utils.events.Signal
-import com.waz.zclient.{Module, R}
+import com.waz.zclient.Module
+import com.waz.zclient.common.controllers.SoundController
+import com.waz.zclient.common.controllers.global.AccentColorController
+import com.waz.zclient.controllers.navigation.INavigationController
+import com.waz.zclient.conversation.ConversationController
+import com.waz.zclient.messages.controllers.NavigationController
+import com.waz.{NotificationManagerWrapper, RobolectricUtils, utils}
 import junit.framework.Assert._
 import org.junit.runner.RunWith
 import org.junit.{Before, Test}
+import org.mockito.Mockito._
+import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.{Robolectric, RobolectricTestRunner}
 import org.scalatest.junit.JUnitSuite
 import org.scalatest.{Informer, Informing}
 import org.threeten.bp.Instant
 
+import scala.collection.immutable.SortedSet
+import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 
 @RunWith(classOf[RobolectricTestRunner])
-@Config(manifest = "src/test/AndroidManifest.xml", resourceDir = "../../build/intermediates/res/merged/dev/debug")
+@Config(manifest = "app/src/test/AndroidManifest.xml", resourceDir = "../../build/intermediates/res/merged/dev/debug")
 class MessageNotificationsControllerTest extends JUnitSuite with RobolectricUtils with Informing {
 
   import com.waz.utils.events.EventContext.Implicits.global
+  import com.waz.ZLog.ImplicitTag.implicitLogTag
 
-  implicit val timeout = Duration(1000, TimeUnit.MILLISECONDS)
+  implicit val timeout = Duration(5000, TimeUnit.MILLISECONDS)
 
-  def notManager = context.getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager]
-  def notManagerShadow = Robolectric.shadowOf(notManager)
+  private val accountId = AccountId()
+  private val userId = UserId()
+  private val convId = ConvId(userId.str)
 
-  lazy val user = UserData(UserId(), "TestUser")
-  lazy val conv = ConversationData(ConvId(user.id.str), RConvId(), None, user.id, ConversationType.OneToOne)
+  private val displayedNots = new SourceSignal[Map[AccountId, Seq[NotId]]]()
 
-  var zms: ZMessaging = _
-  var controller: MessageNotificationsController = _
+  private val globalNotifications = new GlobalNotificationsService {
+    override val groupedNotifications = Signal(Map.empty[AccountId, (Boolean, Seq[NotificationService.NotificationInfo])])
+
+    override def markAsDisplayed(accountId: AccountId, nots: Seq[NotId]): Future[Any] =
+      Future.successful(displayedNots.mutate { cur =>
+        cur + (accountId -> (cur.getOrElse(accountId, Seq.empty).toSet ++ nots).toSeq)
+      })
+
+  }
+
+  // a utility method for sending infos from tests
+  def send(info: NotificationInfo, accId: AccountId = accountId) = {
+    globalNotifications.groupedNotifications ! Map(accId -> (false, Seq(info)))
+  }
+
+  private val notsInManager = new SourceSignal[Map[Int, Notification]]()
+
+  private val notificationManager = new NotificationManagerWrapper {
+
+    override def cancel(id: Int): Unit = {
+      notsInManager.mutate { cur => cur.filterKeys(_ != id) }
+    }
+
+    override def getActiveNotificationIds: Seq[Int] = {
+      notsInManager.currentValue.getOrElse(Map.empty).keys.toSeq
+    }
+
+    override def notify(id: Int, notification: Notification): Unit = {
+      notsInManager ! Map(id -> notification)
+    }
+  }
+
+  private lazy val accountsService = mock(classOf[AccountsService])
+  private lazy val accountsStorage = mock(classOf[AccountsStorage])
+  private lazy val uiLifeCycle     = mock(classOf[UiLifeCycle])
+  private lazy val usersStorage    = mock(classOf[UsersStorage])
+  private lazy val convStorage     = mock(classOf[ConversationStorage])
+  private lazy val convController  = mock(classOf[ConversationController])
+  private lazy val assetsStorage   = mock(classOf[AssetsStorage])
+  private lazy val imageLoader     = mock(classOf[ImageLoader])
+  private lazy val soundController = mock(classOf[SoundController])
+
+  private implicit lazy val module: Module = new Module {
+    // `MessageNotificationController` receives `NotificationInfo`s from here
+    bind[GlobalNotificationsService] to globalNotifications
+    // processed notifications end up here
+    bind[NotificationManagerWrapper] to notificationManager
+
+    // mocked global entities
+    bind[AccountsStorage] to accountsStorage
+    bind[TeamsStorage]    to mock(classOf[TeamsStorage])
+    bind[AccountsService] to accountsService
+    bind[UiLifeCycle]     to uiLifeCycle
+
+    // mocked services of the current ZMessaging
+    bind[Signal[AccountId]]               to Signal.const(accountId)
+    bind[Signal[Option[AccountId]]]       to Signal.const(Some(accountId))
+    bind[Signal[com.waz.api.AccentColor]] to Signal.const(new com.waz.api.AccentColor { override def getColor: Int = 0 })
+    bind[Signal[UsersStorage]]                  to Signal.const(usersStorage)
+    bind[Signal[ConversationStorage]]           to Signal.const(convStorage)
+    bind[Signal[ConversationsListStateService]] to Signal.const(mock(classOf[ConversationsListStateService]))
+    bind[Signal[ConversationsUiService]]        to Signal.const(mock(classOf[ConversationsUiService]))
+    bind[Signal[ConversationsService]]          to Signal.const(mock(classOf[ConversationsService]))
+    bind[Signal[MembersStorage]]                to Signal.const(mock(classOf[MembersStorage]))
+    bind[Signal[UserService]]                   to Signal.const(mock(classOf[UserService]))
+    bind[Signal[OtrClientsStorage]]             to Signal.const(mock(classOf[OtrClientsStorage]))
+    bind[Signal[AssetsStorage]]                 to Signal.const(assetsStorage)
+    bind[Signal[ImageLoader]]                   to Signal.const(imageLoader)
+
+    // mocked controllers
+    bind[AccentColorController]  to new AccentColorController()
+    bind[NavigationController]   to new NavigationController()
+    bind[INavigationController]  to mock(classOf[INavigationController])
+    bind[ConversationController] to convController
+    bind[SoundController]        to soundController
+  }
 
   @Before
   def setUp(): Unit = {
-    try {
-      context.getResources.getString(R.string.pref_options_ringtones_text_key) // force resource loading
-    } catch { case e: Throwable => e.printStackTrace() }
+    utils.isTest = true
 
-    zms = new MockZMessaging() {
-      insertUser(user)
-      insertConv(conv)
-    }
+    module
 
-    implicit val module = new Module {
-      bind[Signal[ZMessaging]] to Signal.const(zms)
-      bind[NotificationManager] to notManager
-    }
-
-    controller = new MessageNotificationsController()
+    val accountData = AccountData(accountId, userId = Some(userId))
+    when(accountsService.loggedInAccounts).thenReturn(Signal.const(Set(accountData)))
+    when(usersStorage.signal(userId)).thenReturn(Signal.const(UserData(userId, "TestUser")))
+    when(uiLifeCycle.uiActive).thenReturn(Signal.const(true))
+    when(convController.currentConvIdOpt).thenReturn(Signal.const(Option.empty[ConvId]))
+    when(convStorage.convsSignal).thenReturn(Signal(ConversationsSet(SortedSet.empty)))
+    when(accountsStorage.get(accountId)).thenReturn(Future.successful(Some(accountData)))
+    when(soundController.soundIntensityNone).thenReturn(true)
+    when(soundController.isVibrationEnabled).thenReturn(false)
   }
 
   @Test
   def displayNotificationForReceivedLike(): Unit = {
-    assertTrue(notManagerShadow.getAllNotifications.isEmpty)
+    new MessageNotificationsController()
+    send( NotificationInfo(NotId(Uid().str), NotificationType.LIKE, Instant.now, "", convId) )
 
-    zms.notifStorage.insert(NotificationData(NotId(Uid().str), "", conv.id, user.id, NotificationType.LIKE, Instant.now))
+    val results = Await.result(notsInManager.head, timeout)
 
-    withDelay {
-      assertEquals(1, notManagerShadow.getAllNotifications.size())
-    }
+    assertEquals(1, results.size)
+    assertEquals(results.head._1, MessageNotificationsController.toNotificationConvId(accountId, convId))
+  }
+
+  @Test
+  def receiveConnectRequest(): Unit = {
+    new MessageNotificationsController()
+
+    send(
+      NotificationInfo(
+        NotId(Uid().str), CONNECT_REQUEST, Instant.now(), "", convId, Some("TestUser"),
+        Some("TestUser"), userPicture = None, isEphemeral = false, hasBeenDisplayed = false
+      )
+    )
+
+    val results = Await.result(notsInManager.head, timeout)
+
+    assertEquals(1, results.size)
+    assertEquals(results.head._1, MessageNotificationsController.toNotificationConvId(accountId, convId))
   }
 
   override protected def info: Informer = new Informer {
