@@ -30,10 +30,11 @@ import com.waz.utils.returning
 import com.waz.zclient.common.views.SingleUserRowView._
 import com.waz.zclient.paintcode.{ForwardNavigationIcon, GuestIcon}
 import com.waz.zclient.ui.text.TypefaceTextView
-import com.waz.zclient.utils.StringUtils
 import com.waz.zclient.utils.ContextUtils._
+import com.waz.zclient.utils.{GuestUtils, StringUtils}
 import com.waz.zclient.views.AvailabilityView
 import com.waz.zclient.{R, ViewHelper}
+import org.threeten.bp.Instant
 
 class SingleUserRowView(context: Context, attrs: AttributeSet, style: Int) extends RelativeLayout(context, attrs, style) with ViewHelper {
   def this(context: Context, attrs: AttributeSet) = this(context, attrs, 0)
@@ -82,7 +83,9 @@ class SingleUserRowView(context: Context, attrs: AttributeSet, style: Int) exten
     setTitle(userData.getDisplayName)
     if (teamId.isDefined) setAvailability(userData.availability)
     setVerified(userData.isVerified)
-    setSubtitle(userData.handle.map(h => StringUtils.formatHandle(h.string)))
+    val handle = userData.handle.map(h => StringUtils.formatHandle(h.string))
+    val expiration = userData.expiresAt.map(GuestUtils.timeRemainingString(_, Instant.now))
+    setSubtitle(expiration.orElse(handle))
     setIsGuest(userData.isGuest(teamId))
   }
 

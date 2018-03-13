@@ -31,7 +31,7 @@ import com.waz.api.Verification
 import com.waz.model._
 import com.waz.service.ZMessaging
 import com.waz.threading.Threading
-import com.waz.utils.events.{EventContext, EventStream, Signal, SourceStream}
+import com.waz.utils.events._
 import com.waz.utils.returning
 import com.waz.zclient.common.controllers.ThemeController
 import com.waz.zclient.common.views.SingleUserRowView
@@ -42,6 +42,7 @@ import com.waz.zclient.ui.text.{GlyphTextView, TypefaceEditText}
 import com.waz.zclient.utils.ContextUtils._
 import com.waz.zclient.utils.{ContextUtils, RichView, ViewUtils}
 import com.waz.zclient.{Injectable, Injector, R}
+import scala.concurrent.duration._
 
 class ParticipantsAdapter(numOfColumns: Int)(implicit context: Context, injector: Injector, eventContext: EventContext)
   extends RecyclerView.Adapter[ViewHolder] with Injectable {
@@ -101,8 +102,9 @@ class ParticipantsAdapter(numOfColumns: Int)(implicit context: Context, injector
     id   <- conv.map(_.id)
     name <- conv.map(_.displayName)
     ver  <- conv.map(_.verified == Verification.VERIFIED)
-  } yield (id, name, ver)).onUi {
-    case (id, name, ver) =>
+    clock <- ClockSignal(5.seconds)
+  } yield (id, name, ver, clock)).onUi {
+    case (id, name, ver, _) =>
       convId = Some(id)
       convName = Some(name)
       convVerified = ver

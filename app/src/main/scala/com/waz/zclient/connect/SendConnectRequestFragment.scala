@@ -27,10 +27,11 @@ import com.waz.ZLog.ImplicitTag._
 import com.waz.model.UserId
 import com.waz.service.ZMessaging
 import com.waz.threading.Threading
-import com.waz.utils.events.Signal
+import com.waz.utils.events.{ClockSignal, Signal}
 import com.waz.utils.returning
-import com.waz.zclient.common.controllers.UserAccountsController
-import com.waz.zclient.common.controllers.global.{AccentColorController, KeyboardController}
+import com.waz.zclient.common.controllers.global.KeyboardController
+import com.waz.zclient.common.controllers.global.AccentColorController
+import com.waz.zclient.common.controllers.{ThemeController, UserAccountsController}
 import com.waz.zclient.common.views.ImageAssetDrawable
 import com.waz.zclient.common.views.ImageAssetDrawable.{RequestBuilder, ScaleType}
 import com.waz.zclient.common.views.ImageController.WireImage
@@ -41,12 +42,15 @@ import com.waz.zclient.messages.UsersController
 import com.waz.zclient.pages.BaseFragment
 import com.waz.zclient.pages.main.connect.UserProfileContainer
 import com.waz.zclient.pages.main.participants.ProfileAnimation
+import com.waz.zclient.paintcode.GuestIcon
 import com.waz.zclient.ui.text.TypefaceTextView
 import com.waz.zclient.ui.views.ZetaButton
 import com.waz.zclient.utils.ContextUtils._
-import com.waz.zclient.utils.{StringUtils, ViewUtils}
+import com.waz.zclient.utils.{GuestUtils, StringUtils, ViewUtils}
 import com.waz.zclient.views.menus.{FooterMenu, FooterMenuCallback}
 import com.waz.zclient.{FragmentHelper, R}
+import org.threeten.bp.Instant
+import scala.concurrent.duration._
 
 class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment.Container]
   with FragmentHelper {
@@ -65,6 +69,7 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
   private lazy val keyboardController = inject[KeyboardController]
   private lazy val accentColorController = inject[AccentColorController]
   private lazy val zms = inject[Signal[ZMessaging]]
+  private lazy val themeController = inject[ThemeController]
 
   private lazy val user = usersController.user(userToConnectId)
 
@@ -83,10 +88,30 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     }
   }
   private lazy val footerMenu = returning(view[FooterMenu](R.id.fm__footer)) { vh =>
-    removeConvMemberFeatureEnabled.map {
-      case true => getString(R.string.glyph__minus)
-      case false => ""
-    }.onUi(text => vh.foreach(_.setRightActionText(text)))
+    Signal(removeConvMemberFeatureEnabled, user.map(_.expiresAt.isDefined)).onUi {
+      case (removeMemberEnabled, isWireless) =>
+
+        val leftText = if (isWireless) "" else getString(R.string.send_connect_request__connect_button__text)
+        val leftGlyph = if (isWireless) "" else getString(R.string.glyph__plus)
+        val rightGlyph = if (removeMemberEnabled) getString(R.string.glyph__minus) else ""
+
+        vh.foreach { footer =>
+          footer.setLeftActionLabelText(leftText)
+          footer.setLeftActionText(leftGlyph)
+          footer.setRightActionText(rightGlyph)
+
+          footer.setCallback(new FooterMenuCallback() {
+            override def onLeftActionClicked(): Unit = {
+              if (!isWireless)
+                showConnectButtonInsteadOfFooterMenu()
+            }
+            override def onRightActionClicked(): Unit = {
+              if (removeMemberEnabled)
+                getContainer.showRemoveConfirmation(userToConnectId)
+            }
+          })
+        }
+    }
   }
   private lazy val imageViewProfile = view[ImageView](R.id.send_connect)
   private lazy val userNameView = returning(view[TypefaceTextView](R.id.user_name)) { vh =>
@@ -95,6 +120,22 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
   private lazy val userHandleView = returning(view[TypefaceTextView](R.id.user_handle)) { vh =>
     user.map(user => StringUtils.formatHandle(user.handle.map(_.string).getOrElse("")))
       .onUi(t => vh.foreach(_.setText(t)))
+  }
+  private lazy val guestIndicator = returning(view[View](R.id.guest_indicator)) { indicator =>
+    zms.flatMap(z => user.map(_.isGuest(z.teamId))).map {
+      case true => View.VISIBLE
+      case _ => View.GONE
+    }.onUi(indicator.setVisibility(_))
+  }
+  private lazy val guestIndicatorIcon = view[ImageView](R.id.guest_indicator_icon)
+  private lazy val guestIndicatorTimer = returning(view[TypefaceTextView](R.id.guest_indicator_timer)) { text =>
+    (for {
+      expires <- user.map(_.expiresAt)
+      clock <- if (expires.isDefined) ClockSignal(5.minutes) else Signal.const(Instant.EPOCH)
+    } yield expires match {
+      case Some(expiresAt) => GuestUtils.timeRemainingString(expiresAt, clock)
+      case _ => ""
+    }).onUi(t => text.foreach(_.setText(t)))
   }
 
   override def onCreateAnimation(transit: Int, enter: Boolean, nextAnim: Int): Animation = {
@@ -125,6 +166,11 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
   override def onViewCreated(view: View, savedInstanceState: Bundle): Unit = {
     userNameView
     userHandleView
+    guestIndicator
+    guestIndicatorTimer
+
+    val color = if (themeController.isDarkTheme) R.color.wire__text_color_primary_dark_selector else R.color.wire__text_color_primary_light_selector
+    guestIndicatorIcon.foreach(_.setImageDrawable(GuestIcon(color)))
 
     val assetDrawable = new ImageAssetDrawable(
       user.map(_.picture).collect { case Some(p) => WireImage(p) },
