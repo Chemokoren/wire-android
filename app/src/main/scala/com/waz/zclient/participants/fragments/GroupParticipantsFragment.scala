@@ -34,11 +34,11 @@ import com.waz.threading.Threading
 import com.waz.utils._
 import com.waz.utils.events._
 import com.waz.zclient.common.controllers.UserAccountsController
+import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationPickFragment}
 import com.waz.zclient.core.stores.connect.IConnectStore
 import com.waz.zclient.integrations.IntegrationDetailsController
-import com.waz.zclient.pages.main.connect.{BlockedUserProfileFragment}
+import com.waz.zclient.pages.main.connect.BlockedUserProfileFragment
 import com.waz.zclient.pages.main.conversation.controller.IConversationScreenController
-import com.waz.zclient.pages.main.pickuser.controller.IPickUserController
 import com.waz.zclient.participants.{ParticipantsAdapter, ParticipantsController}
 import com.waz.zclient.ui.utils.KeyboardUtils
 import com.waz.zclient.utils.ContextUtils._
@@ -55,7 +55,6 @@ class GroupParticipantsFragment extends FragmentHelper {
   private lazy val convScreenController         = inject[IConversationScreenController]
   private lazy val userAccountsController       = inject[UserAccountsController]
   private lazy val integrationDetailsController = inject[IntegrationDetailsController]
-  private lazy val pickUserController           = inject[IPickUserController]
 
   private lazy val participantsView = view[RecyclerView](R.id.pgv__participants)
 
@@ -107,14 +106,7 @@ class GroupParticipantsFragment extends FragmentHelper {
         .replace(R.id.fl__participant__container, new GuestOptionsFragment(), GuestOptionsFragment.Tag)
         .addToBackStack(GuestOptionsFragment.Tag)
         .commit
-
-      showNavigationIcon(true)
     }
-  }
-
-  private def showNavigationIcon(isVisible: Boolean) = getParentFragment match {
-    case f: ParticipantFragment => f.setNavigationIconVisible(isVisible)
-    case _ =>
   }
 
   private def showUser(userId: UserId): Unit = {
@@ -132,8 +124,6 @@ class GroupParticipantsFragment extends FragmentHelper {
         .replace(R.id.fl__participant__container, fragment, tag)
         .addToBackStack(tag)
         .commit
-
-      showNavigationIcon(true)
     }
 
     KeyboardUtils.hideKeyboard(getActivity)
@@ -174,8 +164,6 @@ class GroupParticipantsFragment extends FragmentHelper {
 
     participantsView
     footerMenu.foreach(_.setRightActionText(getString(R.string.glyph__more)))
-
-    showNavigationIcon(false)
   }
 
   override def onResume() = {
@@ -183,7 +171,19 @@ class GroupParticipantsFragment extends FragmentHelper {
     footerMenu.foreach(_.setCallback(new FooterMenuCallback() {
       override def onLeftActionClicked(): Unit = {
         showAddPeople.head.map {
-          case true => pickUserController.showPickUser(IPickUserController.Destination.PARTICIPANTS)
+          case true =>
+            participantsController.conv.head.foreach { conv =>
+              inject[NewConversationController].setAddToConversation(conv.id)
+              getFragmentManager.beginTransaction
+                .setCustomAnimations(
+                  R.anim.in_from_bottom_enter,
+                  R.anim.out_to_bottom_exit,
+                  R.anim.in_from_bottom_pop_enter,
+                  R.anim.out_to_bottom_pop_exit)
+                .replace(R.id.fl__participant__container, new NewConversationPickFragment, NewConversationPickFragment.Tag)
+                .addToBackStack(NewConversationPickFragment.Tag)
+                .commit
+            }
           case _ => //
         }
       }

@@ -20,8 +20,7 @@ package com.waz.zclient.conversation.creation
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.app.Fragment
-import android.support.v7.widget.{LinearLayoutManager, RecyclerView, Toolbar}
-import android.view.View.OnClickListener
+import android.support.v7.widget.{LinearLayoutManager, RecyclerView}
 import android.view._
 import android.view.inputmethod.EditorInfo
 import android.widget.TextView
@@ -33,16 +32,13 @@ import com.waz.service.tracking.{OpenSelectParticipants, TrackingService}
 import com.waz.threading.Threading
 import com.waz.utils.events._
 import com.waz.utils.returning
-import com.waz.zclient.common.controllers.global.{AccentColorController, KeyboardController}
-import com.waz.zclient.common.views.{PickableElement, SingleUserRowView}
-import com.waz.zclient.pages.main.pickuser.controller.IPickUserController
-import com.waz.zclient.pages.main.pickuser.controller.IPickUserController.Destination
-import com.waz.zclient.ui.text.TypefaceTextView
-import com.waz.zclient.usersearch.views.{PickerSpannableEditText, SearchEditText}
-import com.waz.zclient.utils.ContextUtils.getColor
-import com.waz.zclient.utils.RichView
 import com.waz.zclient._
 import com.waz.zclient.common.controllers.ThemeController
+import com.waz.zclient.common.controllers.global.KeyboardController
+import com.waz.zclient.common.views.{PickableElement, SingleUserRowView}
+import com.waz.zclient.ui.text.TypefaceTextView
+import com.waz.zclient.usersearch.views.{PickerSpannableEditText, SearchEditText}
+import com.waz.zclient.utils.RichView
 
 import scala.collection.immutable.Set
 import scala.concurrent.Future
@@ -59,8 +55,6 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
   private lazy val tracking          = inject[TrackingService]
   private lazy val themeController   = inject[ThemeController]
 
-  private lazy val accentColor = inject[AccentColorController].accentColor.map(_.getColor)
-
   private lazy val searchFilter = Signal("")
 
   private lazy val searchResults = for {
@@ -75,31 +69,6 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
   } yield results
 
   private lazy val adapter = NewConvAdapter(searchResults, newConvController.users)
-
-  private lazy val toolbarText = returning(view[TypefaceTextView](R.id.header)) { vh =>
-    newConvController.users.map(_.size).map {
-      case 0 => getString(R.string.add_people_empty_header)
-      case x => getString(R.string.add_people_count_header, x.toString)
-    }.onUi(t => vh.foreach(_.setText(t)))
-  }
-
-  private lazy val toolbar = returning(view[Toolbar](R.id.toolbar)) { vh =>
-    newConvController.convId.map(_.nonEmpty).onUi { hasConv =>
-      vh.foreach(_.setVisibility(if (hasConv) View.VISIBLE else View.GONE))
-    }
-  }
-
-  lazy val confButtonEnabled = newConvController.users.map(_.nonEmpty)
-
-  lazy val confButtonColor = confButtonEnabled.flatMap {
-    case false => Signal.const(getColor(R.color.teams_inactive_button))
-    case _     => accentColor
-  }
-
-  private lazy val confButton = returning(view[TypefaceTextView](R.id.confirmation_button)) { vh =>
-    confButtonEnabled.onUi(e => vh.foreach(_.setEnabled(e)))
-    confButtonColor.onUi(c => vh.foreach(_.setTextColor(c)))
-  }
 
   private lazy val searchBox = returning(view[SearchEditText](R.id.search_box)) { vh =>
     new FutureEventStream[(UserId, Boolean), (PickableUser, Boolean)](adapter.onUserSelectionChanged, {
@@ -143,14 +112,6 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
       tracking.track(OpenSelectParticipants(f))
     }
 
-    confButton.foreach { v =>
-      v.onClick {
-        newConvController.addUsersToConversation()
-        close()
-      }
-      v.setEnabled(newConvController.users.currentValue.exists(_.nonEmpty))
-    }
-
     searchBox.foreach { v =>
       v.applyDarkTheme(themeController.isDarkTheme)
       v.setCallback(new PickerSpannableEditText.Callback{
@@ -171,22 +132,14 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
       selected <- Future.sequence(selectedIds.map(zms.users.getUser))
     } yield selected.flatten).map(_.foreach { user => searchBox.addElement(PickableUser(user.id, user.name)) })(Threading.Ui)
 
-    toolbar.foreach(_.setNavigationOnClickListener(new OnClickListener() {
-      override def onClick(v: View): Unit = close()
-    }))
-
     //lazy init
     errorText
-    toolbarText
   }
 
   private def close() = {
     keyboard.hideKeyboardIfVisible()
-    inject[IPickUserController].hidePickUser(Destination.PARTICIPANTS)
+    getFragmentManager.popBackStack()
   }
-
-  override def onBackPressed() =
-    keyboard.hideKeyboardIfVisible() ||  { close(); true }
 }
 
 object NewConversationPickFragment {

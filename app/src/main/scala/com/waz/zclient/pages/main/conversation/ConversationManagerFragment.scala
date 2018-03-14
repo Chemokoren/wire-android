@@ -254,17 +254,9 @@ class ConversationManagerFragment extends BaseFragment[Container] with FragmentH
       navigationController.setRightPage(Page.PICK_USER_ADD_TO_CONVERSATION, ConversationManagerFragment.Tag)
 
       import com.waz.threading.Threading.Implicits.Ui
-      convController.currentConvIsGroup.head.flatMap {
-        case true =>
-          convController.currentConvId.head.map { cId =>
-            newConvController.setAddToConversation(cId)
-            showFragment(new NewConversationPickFragment, AddOrCreateTag)
-          }
-        case false =>
-          convController.currentConvMembers.head.map { members =>
-            newConvController.setCreateConversation(members, GroupConversationEvent.ConversationDetails)
-            showFragment(new NewConversationFragment, AddOrCreateTag)
-          }
+      convController.currentConvMembers.head.map { members =>
+        newConvController.setCreateConversation(members, GroupConversationEvent.ConversationDetails)
+        showFragment(new NewConversationFragment, AddOrCreateTag)
       }
     }
 

@@ -50,16 +50,33 @@
             android:textColor="?wirePrimaryTextColor"
             app:w_font="@string/wire__typeface__medium"
             />
-        <!-- Close icon-->
-        <com.waz.zclient.ui.text.GlyphTextView
-            android:id="@+id/participants_header__close_icon"
-            android:layout_width="@dimen/wire__icon_button__diameter"
-            android:layout_height="@dimen/wire__icon_button__diameter"
-            android:text="@string/glyph__close"
-            android:gravity="center"
-            android:layout_gravity="end|center_vertical"
-            style="?iconButton"
+
+        <FrameLayout android:layout_width="wrap_content"
+                     android:layout_height="wrap_content"
+                     android:layout_gravity="end|center_vertical">
+
+            <com.waz.zclient.ui.text.TypefaceTextView
+                android:id="@+id/confirmation_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/done_button"
+                android:textColor="@drawable/app_entry_text_button"
+                android:textSize="@dimen/wire__text_size__small"
+                app:w_font="@string/wire__typeface__medium"
+                android:visibility="gone"
             />
+
+            <com.waz.zclient.ui.text.GlyphTextView
+                android:id="@+id/close_button"
+                android:layout_width="@dimen/wire__icon_button__diameter"
+                android:layout_height="@dimen/wire__icon_button__diameter"
+                android:text="@string/glyph__close"
+                android:gravity="center"
+                style="?iconButton"
+            />
+
+        </FrameLayout>
+
 
     </android.support.v7.widget.Toolbar>
 

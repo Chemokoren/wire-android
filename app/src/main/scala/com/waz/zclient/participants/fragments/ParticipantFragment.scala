@@ -28,7 +28,7 @@ import com.waz.ZLog._
 import com.waz.model._
 import com.waz.model.otr.ClientId
 import com.waz.threading.Threading
-import com.waz.utils.events.{Signal, Subscription}
+import com.waz.utils.events.Subscription
 import com.waz.utils.returning
 import com.waz.zclient.common.controllers.UserAccountsController
 import com.waz.zclient.connect.{PendingConnectRequestFragment, SendConnectRequestFragment}
@@ -37,7 +37,6 @@ import com.waz.zclient.conversation.ConversationController
 import com.waz.zclient.core.stores.conversation.ConversationChangeRequester
 import com.waz.zclient.core.stores.conversation.ConversationChangeRequester._
 import com.waz.zclient.integrations.IntegrationDetailsFragment
-import com.waz.zclient.pages.BaseFragment
 import com.waz.zclient.pages.main.connect.BlockedUserProfileFragment
 import com.waz.zclient.pages.main.conversation.controller.{ConversationScreenControllerObserver, IConversationScreenController}
 import com.waz.zclient.pages.main.pickuser.controller.IPickUserController
@@ -49,9 +48,8 @@ import com.waz.zclient.{FragmentHelper, ManagerFragment, R}
 
 import scala.concurrent.Future
 
-class ParticipantFragment extends BaseFragment[ParticipantFragment.Container] with ManagerFragment
+class ParticipantFragment extends ManagerFragment
   with ConversationScreenControllerObserver
-  with ParticipantHeaderFragment.Container
   with SendConnectRequestFragment.Container
   with BlockedUserProfileFragment.Container
   with PendingConnectRequestFragment.Container {
@@ -79,13 +77,8 @@ class ParticipantFragment extends BaseFragment[ParticipantFragment.Container] wi
 
   private lazy val headerFragment  = ParticipantHeaderFragment.newInstance
 
-  val navigationIconVisible = Signal(true)
-
-  def setNavigationIconVisible(isVisible: Boolean): Unit =
-    navigationIconVisible ! isVisible
-
   override def onCreateAnimation(transit: Int, enter: Boolean, nextAnim: Int): Animation =
-    if (nextAnim == 0 || Option(getContainer).isEmpty || getControllerFactory.isTornDown)
+    if (nextAnim == 0 || getParentFragment == null)
       super.onCreateAnimation(transit, enter, nextAnim)
     else new DefaultPageTransitionAnimation(
       0,
@@ -122,8 +115,6 @@ class ParticipantFragment extends BaseFragment[ParticipantFragment.Container] wi
             .addToBackStack(tag)
             .commit
       }
-
-      setNavigationIconVisible(false)
     }
 
     bodyContainer
@@ -276,7 +267,5 @@ object ParticipantFragment {
         f.setArguments(returning(new Bundle)(_.putString(PageToOpenArg, p)))
       }
     }
-
-  trait Container {}
 
 }

@@ -79,7 +79,7 @@ class InsertPasswordFragment extends BaseFragment[Container] with FragmentHelper
     v.getId match {
       case R.id.cancel_button =>
         onBackPressed()
-      case R.id.confirmation_button =>
+      case R.id.`confirmation_button` =>
         getContainer.enableProgress(true)
         signInController.attemptSignIn().map {
           case Left(error) =>

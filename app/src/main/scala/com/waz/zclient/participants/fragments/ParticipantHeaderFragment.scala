@@ -22,46 +22,87 @@ import android.os.Bundle
 import android.support.v7.widget.Toolbar
 import android.view._
 import android.widget.TextView
-import com.waz.utils.events.{Signal, Subscription}
+import com.waz.utils.events.Signal
 import com.waz.utils.returning
+import com.waz.zclient.ManagerFragment.Page
 import com.waz.zclient.common.controllers.ThemeController
-import com.waz.zclient.pages.BaseFragment
+import com.waz.zclient.common.controllers.global.AccentColorController
+import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationPickFragment}
 import com.waz.zclient.participants.ParticipantsController
+import com.waz.zclient.utils.ContextUtils.getColor
 import com.waz.zclient.utils.RichView
 import com.waz.zclient.{FragmentHelper, ManagerFragment, R}
 
-class ParticipantHeaderFragment extends BaseFragment[ParticipantHeaderFragment.Container] with FragmentHelper {
+class ParticipantHeaderFragment extends FragmentHelper {
   implicit def cxt: Context = getActivity
 
   private lazy val participantsController = inject[ParticipantsController]
   private lazy val themeController        = inject[ThemeController]
+  private lazy val newConvController      = inject[NewConversationController]
+  private lazy val accentColor            = inject[AccentColorController].accentColor.map(_.getColor)
 
-  private var subs = Set.empty[Subscription]
+  lazy val page = Option(getParentFragment) match {
+    case Some(f: ManagerFragment) => f.currentContent
+    case _                        => Signal.const(Option.empty[Page])
+  }
+
+  lazy val pageTag = page.map(_.map(_.tag))
+
+  lazy val addingUsers = pageTag.map(_.contains(NewConversationPickFragment.Tag))
 
   private lazy val toolbar = returning(view[Toolbar](R.id.t__participants__toolbar)) { vh =>
     (for {
-      navVisible <- Option(getParentFragment) match {
-                      case Some(f: ParticipantFragment) => f.navigationIconVisible
-                      case _                            => Signal.const(true)
-                    }
-      darkTheme  <- themeController.darkThemeSet
-      icon       =  if (darkTheme) R.drawable.action_back_light else R.drawable.action_back_dark
-    } yield if (navVisible) Some(icon) else None).onUi {
-      case Some(iconId) => vh.foreach(_.setNavigationIcon(iconId))
-      case None         => vh.foreach(_.setNavigationIcon(null))
+      p    <- page
+      dark <- themeController.darkThemeSet
+    } yield
+      p match {
+        case Some(Page(NewConversationPickFragment.Tag, _)) => Some(if (dark) R.drawable.ic_action_close_light else R.drawable.ic_action_close_dark)
+        case Some(Page(_, false)) => Some(if (dark) R.drawable.action_back_light else R.drawable.action_back_dark)
+        case _ => None
+      })
+      .onUi { icon =>
+        vh.foreach { v => icon match {
+          case Some(res) => v.setNavigationIcon(res)
+          case None      => v.setNavigationIcon(null) //can't squash these calls - null needs to be of type Drawable, not int
+        }}
+      }
+  }
+
+  private lazy val confButton = returning(view[TextView](R.id.confirmation_button)) { vh =>
+
+    val confButtonEnabled = newConvController.users.map(_.nonEmpty)
+    confButtonEnabled.onUi(e => vh.foreach(_.setEnabled(e)))
+
+    confButtonEnabled.flatMap {
+      case false => Signal.const(getColor(R.color.teams_inactive_button))
+      case _ => accentColor
+    }.onUi(c => vh.foreach(_.setTextColor(c)))
+
+    addingUsers.onUi(vis => vh.foreach(_.setVisible(vis)))
+    vh.onClick { _ =>
+      newConvController.addUsersToConversation()
+      getActivity.onBackPressed()
     }
   }
 
-  private lazy val closeIcon = returning(view[TextView](R.id.participants_header__close_icon)) { vh =>
+  private lazy val closeButton = returning(view[TextView](R.id.close_button)) { vh =>
+    addingUsers.map(!_).onUi(vis => vh.foreach(_.setVisible(vis)))
     vh.onClick(_ => participantsController.onHideParticipants ! {})
   }
 
   private lazy val headerReadOnlyTextView = returning(view[TextView](R.id.participants__header)) { vh =>
-    (Option(getParentFragment) match {
-      case Some(f: ManagerFragment) => f.currentContentTag
-      case _                        => Signal.const(Option.empty[String])
-    }).map(tag => tag.contains(GroupParticipantsFragment.Tag) || tag.contains(GuestOptionsFragment.Tag))
-      .onUi(vis => vh.foreach(_.setVisible(vis)))
+
+    page.map(_.map(_.tag)).flatMap {
+      case Some(GroupParticipantsFragment.Tag |
+                GuestOptionsFragment.Tag) => Signal.const(getString(R.string.participants_details_header_title))
+
+      case Some(NewConversationPickFragment.Tag) => newConvController.users.map(_.size).map {
+        case 0 => getString(R.string.add_people_empty_header)
+        case x => getString(R.string.add_people_count_header, x.toString)
+      }
+
+      case _ => Signal.const(getString(R.string.empty_string))
+    }.onUi(t => vh.foreach(_.setText(t)))
   }
 
   override def onCreateView(inflater: LayoutInflater, container: ViewGroup, savedInstanceState: Bundle) =
@@ -72,13 +113,8 @@ class ParticipantHeaderFragment extends BaseFragment[ParticipantHeaderFragment.C
 
     toolbar
     headerReadOnlyTextView
-    closeIcon
-  }
-
-  override def onPause(): Unit = {
-    toolbar.foreach(_.setNavigationOnClickListener(null))
-
-    super.onPause()
+    closeButton
+    confButton
   }
 
   override def onResume(): Unit = {
@@ -88,11 +124,9 @@ class ParticipantHeaderFragment extends BaseFragment[ParticipantHeaderFragment.C
     }))
   }
 
-  override def onDestroyView(): Unit = {
-    subs.foreach(_.destroy())
-    subs = Set.empty
-
-    super.onDestroyView()
+  override def onPause(): Unit = {
+    toolbar.foreach(_.setNavigationOnClickListener(null))
+    super.onPause()
   }
 }
 
@@ -100,7 +134,4 @@ object ParticipantHeaderFragment {
   val TAG: String = classOf[ParticipantHeaderFragment].getName
 
   def newInstance: ParticipantHeaderFragment = new ParticipantHeaderFragment
-
-  trait Container {
-  }
 }

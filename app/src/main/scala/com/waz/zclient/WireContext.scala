@@ -163,6 +163,9 @@ trait FragmentHelper extends Fragment with OnBackPressedListener with ViewFinder
     f(getChildFragmentManager.getFragments.asScala.toList.flatMap(Option(_)).lastOption)
   }
 
+  def withParentFragmentOpt[A](f: Option[Fragment] => A): A =
+    f(Option(getParentFragment))
+
   def withFragmentOpt[A](tag: String)(f: Option[Fragment] => A): A =
     f(Option(getChildFragmentManager.findFragmentByTag(tag)))
 
@@ -246,20 +249,26 @@ object FragmentHelper {
 trait ManagerFragment extends FragmentHelper {
   def contentId: Int
 
-  val currentContentTag = Signal(Option.empty[String])
+  import ManagerFragment._
+
+  val currentContent = Signal(Option.empty[Page])
 
   override def onCreate(savedInstanceState: Bundle): Unit = {
     super.onCreate(savedInstanceState)
 
     getChildFragmentManager.addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener {
       override def onBackStackChanged(): Unit =
-        currentContentTag ! withFragmentOpt(contentId)(_.map(_.getTag))
+        currentContent ! withFragmentOpt(contentId)(_.map(_.getTag)).map(Page(_, getChildFragmentManager.getBackStackEntryCount <= 1))
     })
   }
 
   def getContentFragment: Option[Fragment] = withContentFragment(identity)
 
   def withContentFragment[A](f: Option[Fragment] => A): A = withFragmentOpt(contentId)(f)
+}
+
+object ManagerFragment {
+  case class Page(tag: String, firstPage: Boolean)
 }
 
 trait DialogHelper extends Dialog with Injectable with EventContext {
