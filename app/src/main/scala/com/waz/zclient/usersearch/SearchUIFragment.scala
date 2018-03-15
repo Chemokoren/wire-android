@@ -36,7 +36,7 @@ import com.waz.model.UserData.ConnectionStatus
 import com.waz.model._
 import com.waz.permissions.PermissionsService
 import com.waz.service.ZMessaging
-import com.waz.service.tracking.GroupConversationEvent
+import com.waz.service.tracking.{GroupConversationEvent, TrackingEvent, TrackingService}
 import com.waz.threading.{CancellableFuture, Threading}
 import com.waz.utils.events.{Signal, Subscription}
 import com.waz.utils.returning
@@ -84,6 +84,7 @@ class SearchUIFragment extends BaseFragment[SearchUIFragment.Container]
   private lazy val integrationsController = inject[IntegrationsController]
   private lazy val convListController     = inject[ConversationListController]
   private lazy val keyboard               = inject[KeyboardController]
+  private lazy val tracking               = inject[TrackingService]
 
   private lazy val pickUserController     = inject[IPickUserController]
   private lazy val convScreenController   = inject[IConversationScreenController]
@@ -330,6 +331,7 @@ class SearchUIFragment extends BaseFragment[SearchUIFragment.Container]
 
 
   override def onCreateGuestRoomClicked(): Unit = {
+    tracking.track(TrackingEvent("guest_rooms.guest_room_creation"))
     keyboard.hideKeyboardIfVisible()
     conversationController.createGuestRoom().map { conv =>
       conversationController.selectConv(Some(conv.id), ConversationChangeRequester.START_CONVERSATION)

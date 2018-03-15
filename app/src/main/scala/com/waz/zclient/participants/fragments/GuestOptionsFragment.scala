@@ -25,6 +25,7 @@ import android.view.{LayoutInflater, View, ViewGroup}
 import android.widget.{CompoundButton, FrameLayout, TextView}
 import com.waz.ZLog.ImplicitTag._
 import com.waz.service.ZMessaging
+import com.waz.service.tracking.{TrackingEvent, TrackingService}
 import com.waz.threading.Threading
 import com.waz.utils.events.Signal
 import com.waz.utils.returning
@@ -47,6 +48,7 @@ class GuestOptionsFragment extends FragmentHelper {
 
   private lazy val convCtrl = inject[ConversationController]
   private lazy val spinnerController = inject[SpinnerController]
+  private lazy val tracking = inject[TrackingService]
 
   //TODO look into using something more similar to SwitchPreference
   private lazy val guestsSwitch = returning(view[SwitchCompat](R.id.guest_toggle)) { vh =>
@@ -106,6 +108,7 @@ class GuestOptionsFragment extends FragmentHelper {
     }
 
     linkButton.foreach(_.onClick {
+      tracking.track(TrackingEvent("guest_rooms.link_created"))
       spinnerController.showSpinner(true)
       zms.head.map { zms =>
         convCtrl.currentConv.head.flatMap { conv =>
@@ -130,8 +133,12 @@ class GuestOptionsFragment extends FragmentHelper {
       }
     })
 
-    copyLinkButton.foreach(_.onClick(convCtrl.currentConv.head.map(_.link.foreach(link => copyToClipboard(link.url)))(Threading.Ui)))
+    copyLinkButton.foreach(_.onClick {
+      tracking.track(TrackingEvent("guest_rooms.link_copied"))
+      convCtrl.currentConv.head.map(_.link.foreach(link => copyToClipboard(link.url)))(Threading.Ui)
+    })
     shareLinkButton.foreach(_.onClick {
+      tracking.track(TrackingEvent("guest_rooms.link_shared"))
       convCtrl.currentConv.head.map(_.link.foreach { link =>
         val intentBuilder = ShareCompat.IntentBuilder.from(getActivity)
         intentBuilder.setType("text/plain")
@@ -140,7 +147,7 @@ class GuestOptionsFragment extends FragmentHelper {
       })(Threading.Ui)
     })
     revokeLinkButton.foreach(_.onClick {
-
+      tracking.track(TrackingEvent("guest_rooms.link_revoked"))
       ViewUtils.showAlertDialog(getContext,
         R.string.empty_string,
         R.string.revoke_link_message,
