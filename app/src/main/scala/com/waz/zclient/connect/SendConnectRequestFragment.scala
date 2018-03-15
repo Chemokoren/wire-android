@@ -29,8 +29,7 @@ import com.waz.service.ZMessaging
 import com.waz.threading.Threading
 import com.waz.utils.events.{ClockSignal, Signal}
 import com.waz.utils.returning
-import com.waz.zclient.common.controllers.global.KeyboardController
-import com.waz.zclient.common.controllers.global.AccentColorController
+import com.waz.zclient.common.controllers.global.{AccentColorController, KeyboardController}
 import com.waz.zclient.common.controllers.{ThemeController, UserAccountsController}
 import com.waz.zclient.common.views.ImageAssetDrawable
 import com.waz.zclient.common.views.ImageAssetDrawable.{RequestBuilder, ScaleType}
@@ -50,6 +49,7 @@ import com.waz.zclient.utils.{GuestUtils, StringUtils, ViewUtils}
 import com.waz.zclient.views.menus.{FooterMenu, FooterMenuCallback}
 import com.waz.zclient.{FragmentHelper, R}
 import org.threeten.bp.Instant
+
 import scala.concurrent.duration._
 
 class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment.Container]
@@ -88,30 +88,19 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     }
   }
   private lazy val footerMenu = returning(view[FooterMenu](R.id.fm__footer)) { vh =>
-    Signal(removeConvMemberFeatureEnabled, user.map(_.expiresAt.isDefined)).onUi {
-      case (removeMemberEnabled, isWireless) =>
-
-        val leftText = if (isWireless) "" else getString(R.string.send_connect_request__connect_button__text)
-        val leftGlyph = if (isWireless) "" else getString(R.string.glyph__plus)
-        val rightGlyph = if (removeMemberEnabled) getString(R.string.glyph__minus) else ""
-
-        vh.foreach { footer =>
-          footer.setLeftActionLabelText(leftText)
-          footer.setLeftActionText(leftGlyph)
-          footer.setRightActionText(rightGlyph)
-
-          footer.setCallback(new FooterMenuCallback() {
-            override def onLeftActionClicked(): Unit = {
-              if (!isWireless)
-                showConnectButtonInsteadOfFooterMenu()
-            }
-            override def onRightActionClicked(): Unit = {
-              if (removeMemberEnabled)
-                getContainer.showRemoveConfirmation(userToConnectId)
-            }
-          })
-        }
+    user.map(_.expiresAt.isDefined).map {
+      case true => ("", "")
+      case _ => (getString(R.string.send_connect_request__connect_button__text), getString(R.string.glyph__plus))
+    }.onUi{ case (label, glyph) =>
+      vh.foreach { footer =>
+        footer.setLeftActionLabelText(label)
+        footer.setLeftActionText(glyph)
+      }
     }
+    removeConvMemberFeatureEnabled.map {
+      case true => getString(R.string.glyph__minus)
+      case _ => ""
+    }.onUi(text => vh.foreach(_.setRightActionText(text)))
   }
   private lazy val imageViewProfile = view[ImageView](R.id.send_connect)
   private lazy val userNameView = returning(view[TypefaceTextView](R.id.user_name)) { vh =>
@@ -121,13 +110,23 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     user.map(user => StringUtils.formatHandle(user.handle.map(_.string).getOrElse("")))
       .onUi(t => vh.foreach(_.setText(t)))
   }
+
   private lazy val guestIndicator = returning(view[View](R.id.guest_indicator)) { indicator =>
     zms.flatMap(z => user.map(_.isGuest(z.teamId))).map {
       case true => View.VISIBLE
       case _ => View.GONE
     }.onUi(indicator.setVisibility(_))
   }
-  private lazy val guestIndicatorIcon = view[ImageView](R.id.guest_indicator_icon)
+
+  private lazy val guestIconDrawable = themeController.darkThemeSet.map {
+    case true => R.color.wire__text_color_primary_dark_selector
+    case _ => R.color.wire__text_color_primary_light_selector
+  }.map(color => GuestIcon(color))
+
+  private lazy val guestIndicatorIcon = returning(view[ImageView](R.id.guest_indicator_icon)) { icon =>
+    guestIconDrawable.onUi(drawable => icon.foreach(_.setImageDrawable(drawable)))
+  }
+
   private lazy val guestIndicatorTimer = returning(view[TypefaceTextView](R.id.guest_indicator_timer)) { text =>
     (for {
       expires <- user.map(_.expiresAt)
@@ -168,9 +167,7 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     userHandleView
     guestIndicator
     guestIndicatorTimer
-
-    val color = if (themeController.isDarkTheme) R.color.wire__text_color_primary_dark_selector else R.color.wire__text_color_primary_light_selector
-    guestIndicatorIcon.foreach(_.setImageDrawable(GuestIcon(color)))
+    guestIndicatorIcon
 
     val assetDrawable = new ImageAssetDrawable(
       user.map(_.picture).collect { case Some(p) => WireImage(p) },
