@@ -189,7 +189,10 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     }
 
     footerMenu.foreach(_.setCallback(new FooterMenuCallback {
-      override def onLeftActionClicked(): Unit = showConnectButtonInsteadOfFooterMenu()
+      override def onLeftActionClicked(): Unit = user.map(_.expiresAt.isDefined).head.foreach {
+        case false => showConnectButtonInsteadOfFooterMenu()
+        case _ =>
+      }
       override def onRightActionClicked(): Unit = removeConvMemberFeatureEnabled.head foreach {
         case true => getContainer.showRemoveConfirmation(userToConnectId)
         case _ =>

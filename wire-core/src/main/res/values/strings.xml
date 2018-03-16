@@ -1326,7 +1326,7 @@
     <string name="allow_guests_warning_confirm">Remove Guests</string>
     <string name="guests_are_present">GUESTS ARE PRESENT</string>
     <string name="participants_details_header_title">DETAILS</string>
-    <string name="invitation_link_description">Anyone with the link can join the conversation for 24 hours, even if they don’t have Wire.</string>
+    <string name="invitation_link_description">Anyone with the link can join the conversation, even if they don\'t have Wire</string>
     <string name="create_link_button">Create Link</string>
     <string name="copy_link_button">Copy Link</string>
     <string name="share_link_button">Share Link</string>

@@ -26,6 +26,7 @@ import android.widget.TextView
 import com.waz.ZLog.ImplicitTag._
 import com.waz.threading.Threading
 import com.waz.utils._
+import com.waz.utils.events.Signal
 import com.waz.zclient.common.controllers.{BrowserController, ThemeController, UserAccountsController}
 import com.waz.zclient.conversation.ConversationController
 import com.waz.zclient.pages.main.conversation.controller.IConversationScreenController
@@ -97,17 +98,22 @@ class SingleParticipantFragment extends FragmentHelper {
     viewPager.foreach { pager =>
       pager.setAdapter(new TabbedParticipantPagerAdapter(participantOtrDeviceAdapter, new FooterMenuCallback {
 
-        override def onLeftActionClicked(): Unit =
-          participantsController.isGroup.head.foreach {
-            case false if userAccountsController.hasCreateConversationPermission =>
+        override def onLeftActionClicked(): Unit = {
+          (for {
+            isGroup <- participantsController.isGroup
+            isWireless <- participantsController.otherParticipant.map(_.expiresAt.isDefined).orElse(Signal.const(false))
+          } yield (isGroup, isWireless)).head.foreach {
+            case (false, false) if userAccountsController.hasCreateConversationPermission =>
               pickUserController.showPickUser(IPickUserController.Destination.PARTICIPANTS)
-            case _ =>
+            case (_, false) =>
               participantsController.onHideParticipants ! {}
               participantsController.otherParticipantId.head.foreach {
                 case Some(userId) => userAccountsController.getOrCreateAndOpenConvFor(userId)
                 case _ =>
               }
+            case _ =>
           }
+        }
 
         override def onRightActionClicked(): Unit = (for {
           isGroup <- participantsController.isGroup.head

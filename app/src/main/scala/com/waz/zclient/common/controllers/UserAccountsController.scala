@@ -41,6 +41,8 @@ class UserAccountsController(implicit injector: Injector, context: Context, ec: 
     user    <- account.flatMap(_.userId).fold(Signal.const(Option.empty[UserData]))(accId => zms.usersStorage.signal(accId).map(Some(_)))
   } yield user
 
+  lazy val teamId = zms.map(_.teamId)
+
   private var _permissions = Set[AccountData.Permission]()
 
   private var _teamId = Option.empty[TeamId]
@@ -66,6 +68,12 @@ class UserAccountsController(implicit injector: Injector, context: Context, ec: 
   } yield teamMembers.map(_.id)
 
   teamMembersSignal.onUi(members => _teamMembers = members)
+
+  def hasPermissions(permissions: Set[AccountData.Permission]): Signal[Boolean] =
+    for {
+      inTeam <- teamId.map(_.isDefined)
+      hasPerms <- this.permissions.map(userPermissions => permissions.forall(userPermissions.contains))
+    } yield !inTeam || hasPerms
 
   def hasRemoveConversationMemberPermission(convId: ConvId): Signal[Boolean] =
     for {
@@ -97,7 +105,6 @@ class UserAccountsController(implicit injector: Injector, context: Context, ec: 
   def getOrCreateAndOpenConvFor(user: UserId) =
     getConversationId(user).flatMap(convCtrl.selectConv(_, ConversationChangeRequester.START_CONVERSATION))
 
-  lazy val teamId = zms.map(_.teamId)
   teamId.onUi(_teamId = _)
 
   val isTeam: Signal[Boolean] = teamId.map(_.isDefined)

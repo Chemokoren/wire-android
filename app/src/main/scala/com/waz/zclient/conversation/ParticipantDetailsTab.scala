@@ -20,21 +20,23 @@ package com.waz.zclient.conversation
 import android.content.Context
 import android.widget.{ImageView, LinearLayout}
 import com.waz.ZLog.ImplicitTag._
+import com.waz.model.AccountData
 import com.waz.service.ZMessaging
-import com.waz.utils.events.Signal
+import com.waz.utils.events.{ClockSignal, Signal}
 import com.waz.utils.returning
 import com.waz.zclient.common.controllers.{ThemeController, UserAccountsController}
-import com.waz.zclient.common.views.ImageAssetDrawable
-import com.waz.zclient.common.views.ImageAssetDrawable.{RequestBuilder, ScaleType}
-import com.waz.zclient.common.views.ImageController.{ImageSource, WireImage}
+import com.waz.zclient.common.views.ChatheadView
 import com.waz.zclient.messages.UsersController
 import com.waz.zclient.paintcode.GuestIcon
 import com.waz.zclient.participants.ParticipantsController
+import com.waz.zclient.ui.text.TypefaceTextView
 import com.waz.zclient.utils.ContextUtils._
-import com.waz.zclient.utils.{RichView, UiStorage}
+import com.waz.zclient.utils.{GuestUtils, RichView, UiStorage}
 import com.waz.zclient.views.ShowAvailabilityView
 import com.waz.zclient.views.menus.{FooterMenu, FooterMenuCallback}
 import com.waz.zclient.{R, ViewHelper}
+import org.threeten.bp.Instant
+import scala.concurrent.duration._
 
 class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) extends LinearLayout(context, null, 0) with ViewHelper {
 
@@ -48,7 +50,7 @@ class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) 
   private val userAccountsController = inject[UserAccountsController]
   private val themeController        = inject[ThemeController]
 
-  private val imageView = findById[ImageView](R.id.chathead)
+  private val imageView = findById[ChatheadView](R.id.chathead)
 
   private val footerMenu = returning(findById[FooterMenu](R.id.fm__footer)) {
     _.setCallback(callback)
@@ -56,14 +58,24 @@ class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) 
 
   private lazy val guestIndication     = findById[LinearLayout](R.id.guest_indicator)
   private lazy val userAvailability    = findById[ShowAvailabilityView](R.id.participant_availability)
-
-  private val picture: Signal[ImageSource] =
-    participantsController.otherParticipant.map(_.picture).collect { case Some(pic) => WireImage(pic) }
+  private lazy val guestIndicatorTimer = findById[TypefaceTextView](R.id.guest_indicator_timer)
 
   private val otherUserIsGuest = for {
     teamId <- zms.map(_.teamId)
     user   <- participantsController.otherParticipant
   } yield !user.isWireBot && user.isGuest(teamId)
+
+  private val leftActionStrings = for {
+    isWireless <- participantsController.otherParticipant.map(_.expiresAt.isDefined)
+    isGroupOrBot <- participantsController.isGroupOrBot
+    hasPermissions <- userAccountsController.hasPermissions(Set(AccountData.Permission.CreateConversation))
+  } yield if (isWireless) {
+    (R.string.empty_string, R.string.empty_string)
+  } else if (hasPermissions && !isGroupOrBot) {
+    (R.string.glyph__add_people, R.string.conversation__action__create_group)
+  } else {
+    (R.string.glyph__conversation, R.string.empty_string)
+  }
 
   otherUserIsGuest.onUi(guestIndication.setVisible(_))
 
@@ -72,7 +84,15 @@ class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) 
     icon.setImageDrawable(GuestIcon(color))
   }
 
-  imageView.setImageDrawable(new ImageAssetDrawable(picture, scaleType = ScaleType.CenterInside, request = RequestBuilder.Round))
+  participantsController.otherParticipant.map(_.id){ imageView.setUserId }
+
+  (for {
+    expires <- participantsController.otherParticipant.map(_.expiresAt)
+    clock <- if (expires.isDefined) ClockSignal(5.minutes) else Signal.const(Instant.EPOCH)
+  } yield expires match {
+    case Some(expiresAt) => GuestUtils.timeRemainingString(expiresAt, clock)
+    case _ => ""
+  }).onUi(guestIndicatorTimer.setText)
 
   usersController.availabilityVisible.onUi { userAvailability.setVisible }
 
@@ -83,18 +103,9 @@ class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) 
     userAvailability.set
   }
 
-  participantsController.isGroupOrBot.map {
-    case false if userAccountsController.hasCreateConversationPermission => R.string.glyph__add_people
-    case _                                                               => R.string.glyph__conversation
-  }.onUi { id =>
-    footerMenu.setLeftActionText(getString(id))
-  }
-
-  participantsController.isGroupOrBot.map {
-    case false if userAccountsController.hasCreateConversationPermission => R.string.conversation__action__create_group
-    case _                                                               => R.string.empty_string
-  }.onUi { id =>
-    footerMenu.setLeftActionLabelText(getString(id))
+  leftActionStrings.onUi { case (icon, text) =>
+      footerMenu.setLeftActionText(getString(icon))
+      footerMenu.setLeftActionLabelText(getString(text))
   }
 
   (for {

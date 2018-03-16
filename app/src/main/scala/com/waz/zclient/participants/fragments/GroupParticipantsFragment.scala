@@ -138,7 +138,7 @@ class GroupParticipantsFragment extends FragmentHelper {
 
     KeyboardUtils.hideKeyboard(getActivity)
     participantsController.getUser(userId).foreach {
-      case Some(user) if user.connection == ACCEPTED || userAccountsController.isTeamAccount && userAccountsController.isTeamMember(userId) =>
+      case Some(user) if user.connection == ACCEPTED || user.expiresAt.isDefined || userAccountsController.isTeamAccount && userAccountsController.isTeamMember(userId) =>
         participantsController.selectParticipant(userId)
         openUserProfileFragment(SingleParticipantFragment.newInstance(), SingleParticipantFragment.Tag)
 
