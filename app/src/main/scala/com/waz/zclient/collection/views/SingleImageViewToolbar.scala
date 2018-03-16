@@ -77,7 +77,12 @@ class SingleImageViewToolbar(context: Context, attrs: AttributeSet, style: Int) 
   Seq(likeButton, downloadButton, shareButton, deleteButton, viewButton)
     .foreach(_.setPressedBackgroundColor(getColor(R.color.light_graphite)))
 
-  likeButton.onClick( message.head.foreach(msg => messageActionsController.onMessageAction ! (MessageAction.Like, msg)))
+  likeButton.onClick( Signal(message, likedBySelf).head.foreach{
+    case (msg, true) =>
+      messageActionsController.onMessageAction ! (MessageAction.Unlike, msg)
+    case (msg, false) =>
+      messageActionsController.onMessageAction ! (MessageAction.Like, msg)
+  })
   downloadButton.onClick( message.head.foreach(msg => messageActionsController.onMessageAction ! (MessageAction.Save, msg)))
   shareButton.onClick( message.head.foreach(msg => messageActionsController.onMessageAction ! (MessageAction.Forward, msg)))
 
