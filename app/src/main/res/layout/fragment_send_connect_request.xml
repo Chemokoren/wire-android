@@ -82,14 +82,14 @@
             android:paddingStart="@dimen/wire__padding__small"
             android:paddingEnd="@dimen/wire__padding__small"
             android:textColor="?wirePrimaryTextColor"
-            android:textSize="@dimen/wire__text_size__small"
-            app:w_font="@string/wire__typeface__regular"
+            android:textSize="@dimen/wire__text_size__regular"
+            app:w_font="@string/wire__typeface__light"
             android:text="@string/participant_tab_guest_indicator_label"/>
 
     </LinearLayout>
 
     <com.waz.zclient.ui.text.TypefaceTextView
-        android:id="@+id/guest_indicator_timer"
+        android:id="@+id/expiration_time"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/wire__padding__small"

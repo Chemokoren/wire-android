@@ -1303,7 +1303,7 @@
     <string name="next_button">NEXT</string>
     <string name="skip_button">SKIP</string>
     <string name="done_button">DONE</string>
-    <string name="new_group_header">NEW GROUP</string>
+    <string name="new_group_header">GROUP NAME</string>
     <string name="add_people_empty_header">ADD PEOPLE</string>
     <string name="add_people_count_header">ADD PEOPLE (%1$s)</string>
     <string name="new_conv_no_results">NO RESULTS</string>

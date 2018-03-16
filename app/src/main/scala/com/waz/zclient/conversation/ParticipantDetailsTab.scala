@@ -58,7 +58,7 @@ class ParticipantDetailsTab(val context: Context, callback: FooterMenuCallback) 
 
   private lazy val guestIndication     = findById[LinearLayout](R.id.guest_indicator)
   private lazy val userAvailability    = findById[ShowAvailabilityView](R.id.participant_availability)
-  private lazy val guestIndicatorTimer = findById[TypefaceTextView](R.id.guest_indicator_timer)
+  private lazy val guestIndicatorTimer = findById[TypefaceTextView](R.id.expiration_time)
 
   private val otherUserIsGuest = for {
     teamId <- zms.map(_.teamId)

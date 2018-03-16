@@ -127,7 +127,7 @@ class SendConnectRequestFragment extends BaseFragment[SendConnectRequestFragment
     guestIconDrawable.onUi(drawable => icon.foreach(_.setImageDrawable(drawable)))
   }
 
-  private lazy val guestIndicatorTimer = returning(view[TypefaceTextView](R.id.guest_indicator_timer)) { text =>
+  private lazy val guestIndicatorTimer = returning(view[TypefaceTextView](R.id.expiration_time)) { text =>
     (for {
       expires <- user.map(_.expiresAt)
       clock <- if (expires.isDefined) ClockSignal(5.minutes) else Signal.const(Instant.EPOCH)

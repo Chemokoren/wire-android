@@ -34,7 +34,6 @@
             android:id="@+id/chathead"
             android:layout_width="@dimen/profile__image__width"
             android:layout_height="@dimen/profile__image__height"
-            android:padding="@dimen/wire__padding__tiny"
             app:show_border="false"
             app:allow_icon="false"
             app:is_round="true"
@@ -50,7 +49,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginTop="@dimen/wire__padding__regular"
+            android:layout_marginTop="@dimen/wire__padding__32"
             android:visibility="gone">
 
             <ImageView
@@ -67,13 +66,14 @@
                 android:paddingStart="@dimen/wire__padding__small"
                 android:paddingEnd="@dimen/wire__padding__small"
                 android:textColor="?wirePrimaryTextColor"
-                android:textSize="@dimen/wire__text_size__small"
-                android:text="@string/participant_tab_guest_indicator_label"/>
+                android:textSize="@dimen/wire__text_size__regular"
+                android:text="@string/participant_tab_guest_indicator_label"
+                app:w_font="@string/wire__typeface__light"/>
 
         </LinearLayout>
 
         <com.waz.zclient.ui.text.TypefaceTextView
-            android:id="@+id/guest_indicator_timer"
+            android:id="@+id/expiration_time"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/wire__padding__small"
