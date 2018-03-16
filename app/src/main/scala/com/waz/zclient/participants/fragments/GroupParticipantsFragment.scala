@@ -34,7 +34,7 @@ import com.waz.threading.Threading
 import com.waz.utils._
 import com.waz.utils.events._
 import com.waz.zclient.common.controllers.UserAccountsController
-import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationPickFragment}
+import com.waz.zclient.conversation.creation.{CreateConversationController, AddParticipantsFragment}
 import com.waz.zclient.core.stores.connect.IConnectStore
 import com.waz.zclient.integrations.IntegrationDetailsController
 import com.waz.zclient.pages.main.connect.BlockedUserProfileFragment
@@ -173,15 +173,15 @@ class GroupParticipantsFragment extends FragmentHelper {
         showAddPeople.head.map {
           case true =>
             participantsController.conv.head.foreach { conv =>
-              inject[NewConversationController].setAddToConversation(conv.id)
+              inject[CreateConversationController].setAddToConversation(conv.id)
               getFragmentManager.beginTransaction
                 .setCustomAnimations(
                   R.anim.in_from_bottom_enter,
                   R.anim.out_to_bottom_exit,
                   R.anim.in_from_bottom_pop_enter,
                   R.anim.out_to_bottom_pop_exit)
-                .replace(R.id.fl__participant__container, new NewConversationPickFragment, NewConversationPickFragment.Tag)
-                .addToBackStack(NewConversationPickFragment.Tag)
+                .replace(R.id.fl__participant__container, new AddParticipantsFragment, AddParticipantsFragment.Tag)
+                .addToBackStack(AddParticipantsFragment.Tag)
                 .commit
             }
           case _ => //

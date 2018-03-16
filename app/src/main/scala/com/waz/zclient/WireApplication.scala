@@ -54,7 +54,7 @@ import com.waz.zclient.controllers.navigation.INavigationController
 import com.waz.zclient.controllers.singleimage.ISingleImageController
 import com.waz.zclient.controllers.userpreferences.IUserPreferencesController
 import com.waz.zclient.conversation.ConversationController
-import com.waz.zclient.conversation.creation.NewConversationController
+import com.waz.zclient.conversation.creation.CreateConversationController
 import com.waz.zclient.conversationlist.ConversationListController
 import com.waz.zclient.core.stores.IStoreFactory
 import com.waz.zclient.core.stores.network.INetworkStore
@@ -184,7 +184,7 @@ object WireApplication {
     bind [CursorController]             to new CursorController()
     bind [ConversationListController]   to new ConversationListController()
     bind [IntegrationDetailsController] to new IntegrationDetailsController()
-    bind [NewConversationController]    to new NewConversationController()
+    bind [CreateConversationController]    to new CreateConversationController()
     bind [ParticipantsController]       to new ParticipantsController()
     bind [UsersController]              to new UsersController()
     bind [SpinnerController]            to new SpinnerController()

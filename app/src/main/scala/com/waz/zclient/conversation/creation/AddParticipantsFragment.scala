@@ -19,7 +19,6 @@ package com.waz.zclient.conversation.creation
 
 import android.content.Context
 import android.os.Bundle
-import android.support.v4.app.Fragment
 import android.support.v7.widget.{LinearLayoutManager, RecyclerView}
 import android.view._
 import android.view.inputmethod.EditorInfo
@@ -43,14 +42,14 @@ import com.waz.zclient.utils.RichView
 import scala.collection.immutable.Set
 import scala.concurrent.Future
 
-class NewConversationPickFragment extends Fragment with FragmentHelper with OnBackPressedListener {
+class AddParticipantsFragment extends FragmentHelper {
 
-  import NewConversationPickFragment._
+  import AddParticipantsFragment._
   import Threading.Implicits.Background
   implicit def cxt: Context = getContext
 
   private lazy val zms               = inject[Signal[ZMessaging]]
-  private lazy val newConvController = inject[NewConversationController]
+  private lazy val newConvController = inject[CreateConversationController]
   private lazy val keyboard          = inject[KeyboardController]
   private lazy val tracking          = inject[TrackingService]
   private lazy val themeController   = inject[ThemeController]
@@ -68,7 +67,7 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
     }
   } yield results
 
-  private lazy val adapter = NewConvAdapter(searchResults, newConvController.users)
+  private lazy val adapter = AddParticipantsAdapter(searchResults, newConvController.users)
 
   private lazy val searchBox = returning(view[SearchEditText](R.id.search_box)) { vh =>
     new FutureEventStream[(UserId, Boolean), (PickableUser, Boolean)](adapter.onUserSelectionChanged, {
@@ -142,7 +141,7 @@ class NewConversationPickFragment extends Fragment with FragmentHelper with OnBa
   }
 }
 
-object NewConversationPickFragment {
+object AddParticipantsFragment {
 
   val ShowKeyboardThreshold = 10
   val Tag = implicitLogTag
@@ -153,8 +152,8 @@ object NewConversationPickFragment {
   }
 }
 
-case class NewConvAdapter(searchResults: Signal[IndexedSeq[UserData]], selectedUsers: SourceSignal[Set[UserId]])
-                         (implicit context: Context, eventContext: EventContext, injector: Injector)
+case class AddParticipantsAdapter(searchResults: Signal[IndexedSeq[UserData]], selectedUsers: SourceSignal[Set[UserId]])
+                                 (implicit context: Context, eventContext: EventContext, injector: Injector)
   extends RecyclerView.Adapter[SelectableUserRowViewHolder] with Injectable {
 
   private implicit val ctx = context

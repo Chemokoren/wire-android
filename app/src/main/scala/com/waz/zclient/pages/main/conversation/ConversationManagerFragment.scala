@@ -50,7 +50,7 @@ import com.waz.zclient.controllers.drawing.IDrawingController.DrawingDestination
 import com.waz.zclient.controllers.drawing.{DrawingObserver, IDrawingController}
 import com.waz.zclient.controllers.location.{ILocationController, LocationObserver}
 import com.waz.zclient.controllers.navigation.{INavigationController, Page}
-import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationFragment, NewConversationPickFragment}
+import com.waz.zclient.conversation.creation.{CreateConversationController, CreateConversationManagerFragment, AddParticipantsFragment}
 import com.waz.zclient.conversation.{ConversationController, LikesListFragment}
 import com.waz.zclient.core.stores.conversation.ConversationChangeRequester
 import com.waz.zclient.pages.BaseFragment
@@ -85,7 +85,7 @@ class ConversationManagerFragment extends BaseFragment[Container] with FragmentH
   private lazy val drawingController    = inject[IDrawingController]
   private lazy val locationController   = inject[ILocationController]
   private lazy val pickUserController   = inject[IPickUserController]
-  private lazy val newConvController    = inject[NewConversationController]
+  private lazy val newConvController    = inject[CreateConversationController]
   private lazy val participantsController = inject[ParticipantsController]
 
   private var pickUserDestination = Option.empty[IPickUserController.Destination]
@@ -178,11 +178,11 @@ class ConversationManagerFragment extends BaseFragment[Container] with FragmentH
     fragment match {
       case f: OnBackPressedListener if f.onBackPressed => true
 
-      case f: NewConversationPickFragment =>
+      case f: AddParticipantsFragment =>
         f.onBackPressed()
         pickUserDestination.foreach(pickUserController.hidePickUser)
         true
-      case f: NewConversationFragment if pickUserDestination.isDefined  =>
+      case f: CreateConversationManagerFragment if pickUserDestination.isDefined  =>
         f.onBackPressed()
         pickUserDestination.foreach(pickUserController.hidePickUser)
         true
@@ -256,7 +256,7 @@ class ConversationManagerFragment extends BaseFragment[Container] with FragmentH
       import com.waz.threading.Threading.Implicits.Ui
       convController.currentConvMembers.head.map { members =>
         newConvController.setCreateConversation(members, GroupConversationEvent.ConversationDetails)
-        showFragment(new NewConversationFragment, AddOrCreateTag)
+        showFragment(new CreateConversationManagerFragment, AddOrCreateTag)
       }
     }
 

@@ -47,7 +47,7 @@ import com.waz.zclient.common.controllers.global.{AccentColorController, Keyboar
 import com.waz.zclient.common.views.{FlatWireButton, PickableElement}
 import com.waz.zclient.controllers.navigation.{INavigationController, Page}
 import com.waz.zclient.conversation.ConversationController
-import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationFragment}
+import com.waz.zclient.conversation.creation.{CreateConversationController, CreateConversationManagerFragment}
 import com.waz.zclient.conversationlist.ConversationListController
 import com.waz.zclient.core.stores.conversation.ConversationChangeRequester
 import com.waz.zclient.integrations.{IntegrationDetailsController, IntegrationDetailsFragment}
@@ -317,15 +317,15 @@ class SearchUIFragment extends BaseFragment[SearchUIFragment.Container]
 
   override def onCreateConvClicked(): Unit = {
     keyboard.hideKeyboardIfVisible()
-    inject[NewConversationController].setCreateConversation(from = GroupConversationEvent.StartUi)
+    inject[CreateConversationController].setCreateConversation(from = GroupConversationEvent.StartUi)
     getFragmentManager.beginTransaction
       .setCustomAnimations(
         R.anim.slide_in_from_bottom_pick_user,
         R.anim.open_new_conversation__thread_list_out,
         R.anim.open_new_conversation__thread_list_in,
         R.anim.slide_out_to_bottom_pick_user)
-      .replace(R.id.fl__conversation_list_main, new NewConversationFragment, NewConversationFragment.Tag)
-      .addToBackStack(NewConversationFragment.Tag)
+      .replace(R.id.fl__conversation_list_main, new CreateConversationManagerFragment, CreateConversationManagerFragment.Tag)
+      .addToBackStack(CreateConversationManagerFragment.Tag)
       .commit()
   }
 

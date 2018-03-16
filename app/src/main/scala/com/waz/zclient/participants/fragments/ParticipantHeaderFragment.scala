@@ -27,7 +27,7 @@ import com.waz.utils.returning
 import com.waz.zclient.ManagerFragment.Page
 import com.waz.zclient.common.controllers.ThemeController
 import com.waz.zclient.common.controllers.global.AccentColorController
-import com.waz.zclient.conversation.creation.{NewConversationController, NewConversationPickFragment}
+import com.waz.zclient.conversation.creation.{CreateConversationController, AddParticipantsFragment}
 import com.waz.zclient.participants.ParticipantsController
 import com.waz.zclient.utils.ContextUtils.getColor
 import com.waz.zclient.utils.RichView
@@ -38,7 +38,7 @@ class ParticipantHeaderFragment extends FragmentHelper {
 
   private lazy val participantsController = inject[ParticipantsController]
   private lazy val themeController        = inject[ThemeController]
-  private lazy val newConvController      = inject[NewConversationController]
+  private lazy val newConvController      = inject[CreateConversationController]
   private lazy val accentColor            = inject[AccentColorController].accentColor.map(_.getColor)
 
   lazy val page = Option(getParentFragment) match {
@@ -48,7 +48,7 @@ class ParticipantHeaderFragment extends FragmentHelper {
 
   lazy val pageTag = page.map(_.map(_.tag))
 
-  lazy val addingUsers = pageTag.map(_.contains(NewConversationPickFragment.Tag))
+  lazy val addingUsers = pageTag.map(_.contains(AddParticipantsFragment.Tag))
 
   private lazy val toolbar = returning(view[Toolbar](R.id.t__participants__toolbar)) { vh =>
     (for {
@@ -56,7 +56,7 @@ class ParticipantHeaderFragment extends FragmentHelper {
       dark <- themeController.darkThemeSet
     } yield
       p match {
-        case Some(Page(NewConversationPickFragment.Tag, _)) => Some(if (dark) R.drawable.ic_action_close_light else R.drawable.ic_action_close_dark)
+        case Some(Page(AddParticipantsFragment.Tag, _)) => Some(if (dark) R.drawable.ic_action_close_light else R.drawable.ic_action_close_dark)
         case Some(Page(_, false)) => Some(if (dark) R.drawable.action_back_light else R.drawable.action_back_dark)
         case _ => None
       })
@@ -96,7 +96,7 @@ class ParticipantHeaderFragment extends FragmentHelper {
       case Some(GroupParticipantsFragment.Tag |
                 GuestOptionsFragment.Tag) => Signal.const(getString(R.string.participants_details_header_title))
 
-      case Some(NewConversationPickFragment.Tag) => newConvController.users.map(_.size).map {
+      case Some(AddParticipantsFragment.Tag) => newConvController.users.map(_.size).map {
         case 0 => getString(R.string.add_people_empty_header)
         case x => getString(R.string.add_people_count_header, x.toString)
       }

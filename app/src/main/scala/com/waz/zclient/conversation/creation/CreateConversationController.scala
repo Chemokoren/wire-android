@@ -28,7 +28,7 @@ import com.waz.zclient.{Injectable, Injector}
 
 import scala.concurrent.Future
 
-class NewConversationController(implicit inj: Injector, ev: EventContext) extends Injectable {
+class CreateConversationController(implicit inj: Injector, ev: EventContext) extends Injectable {
   import com.waz.threading.Threading.Implicits.Background
 
   private lazy val conversationController = inject[ConversationController]

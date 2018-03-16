@@ -33,8 +33,8 @@ import com.waz.zclient.common.views.InputBox
 import com.waz.zclient.common.views.InputBox.GroupNameValidator
 import com.waz.zclient.utils.RichView
 
-class NewConversationSettingsFragment extends Fragment with FragmentHelper {
-  private lazy val convController = inject[NewConversationController]
+class CreateConversationSettingsFragment extends Fragment with FragmentHelper {
+  private lazy val convController = inject[CreateConversationController]
   private lazy val userAccountsController = inject[UserAccountsController]
 
   private lazy val inputBox = view[InputBox](R.id.input_box)
@@ -74,6 +74,6 @@ class NewConversationSettingsFragment extends Fragment with FragmentHelper {
 
 }
 
-object NewConversationSettingsFragment {
+object CreateConversationSettingsFragment {
   val Tag = ZLog.ImplicitTag.implicitLogTag
 }

@@ -32,7 +32,7 @@ import com.waz.utils.returning
 import com.waz.zclient.common.controllers.ThemeController
 import com.waz.zclient.common.controllers.global.{AccentColorController, KeyboardController}
 import com.waz.zclient.conversation.ConversationController
-import com.waz.zclient.conversation.creation.NewConversationFragment._
+import com.waz.zclient.conversation.creation.CreateConversationManagerFragment._
 import com.waz.zclient.core.stores.conversation.ConversationChangeRequester
 import com.waz.zclient.pages.main.pickuser.controller.IPickUserController
 import com.waz.zclient.pages.main.pickuser.controller.IPickUserController.Destination
@@ -42,11 +42,11 @@ import com.waz.zclient.utils.RichView
 import com.waz.zclient.views.DefaultPageTransitionAnimation
 import com.waz.zclient.{FragmentHelper, R}
 
-class NewConversationFragment extends FragmentHelper {
+class CreateConversationManagerFragment extends FragmentHelper {
 
   implicit private def ctx = getContext
 
-  private lazy val newConvController      = inject[NewConversationController]
+  private lazy val newConvController      = inject[CreateConversationController]
   private lazy val conversationController = inject[ConversationController]
   private lazy val keyboard               = inject[KeyboardController]
   private lazy val pickUserController     = inject[IPickUserController]
@@ -136,8 +136,8 @@ class NewConversationFragment extends FragmentHelper {
         if (getChildFragmentManager.getBackStackEntryCount  > 0) {
           val fragment = getChildFragmentManager.getBackStackEntryAt(getChildFragmentManager.getBackStackEntryCount - 1)
           currentPage ! (fragment.getName match {
-            case NewConversationSettingsFragment.Tag => SettingsPage
-            case NewConversationPickFragment.Tag => PickerPage
+            case CreateConversationSettingsFragment.Tag => SettingsPage
+            case AddParticipantsFragment.Tag => PickerPage
             case _ => SettingsPage
           })
         }
@@ -148,13 +148,13 @@ class NewConversationFragment extends FragmentHelper {
     inflater.inflate(R.layout.create_conv_fragment, container, false)
 
   override def onViewCreated(v: View, savedInstanceState: Bundle): Unit = {
-    openFragment(new NewConversationSettingsFragment, NewConversationSettingsFragment.Tag)
+    openFragment(new CreateConversationSettingsFragment, CreateConversationSettingsFragment.Tag)
 
     confButton.foreach(_.onClick {
       currentPage.currentValue.foreach {
         case SettingsPage =>
           keyboard.hideKeyboardIfVisible()
-          openFragment(new NewConversationPickFragment, NewConversationPickFragment.Tag)
+          openFragment(new AddParticipantsFragment, AddParticipantsFragment.Tag)
         case PickerPage =>
           newConvController.createConversation().flatMap { convId =>
             close()
@@ -218,7 +218,7 @@ class NewConversationFragment extends FragmentHelper {
   }
 }
 
-object NewConversationFragment {
+object CreateConversationManagerFragment {
   val Tag = ZLog.ImplicitTag.implicitLogTag
 
   val SettingsPage = 0

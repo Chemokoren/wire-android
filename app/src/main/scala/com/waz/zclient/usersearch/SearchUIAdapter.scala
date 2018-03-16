@@ -250,7 +250,7 @@ class SearchUIAdapter(adapterCallback: SearchUIAdapter.Callback, integrationsCon
       case SectionHeader     => new SectionHeaderViewHolder(view)
       case Expand            => new SectionExpanderViewHolder(view)
       case Integration       => new IntegrationViewHolder(view.asInstanceOf[SingleUserRowView], adapterCallback)
-      case NewConversation   => new NewConversationButtonViewHolder(view, adapterCallback)
+      case NewConversation   => new CreateConversationButtonViewHolder(view, adapterCallback)
       case NewGuestRoom      => new NewGuestRoomViewHolder(view, adapterCallback)
       case _                 => null
     }
@@ -313,7 +313,7 @@ object SearchUIAdapter {
     def apply(itemType: Int, section: Int, index: Int): SearchResult = SearchResult(itemType, section, index, "")
   }
 
-  class NewConversationButtonViewHolder(view: View, callback: SearchUIAdapter.Callback) extends RecyclerView.ViewHolder(view) {
+  class CreateConversationButtonViewHolder(view: View, callback: SearchUIAdapter.Callback) extends RecyclerView.ViewHolder(view) {
     private implicit val ctx = view.getContext
     view.findViewById[View](R.id.icon).setBackground(CreateGroupIcon(R.color.white))
     view.findViewById[TypefaceTextView](R.id.title).setText(R.string.create_group_conversation)
